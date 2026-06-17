@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LUMOS — Review & Approve</title>
+<style>
+  :root{
+    --bg:#0E0E10; --card:#17171B; --line:#26262C;
+    --ink:#F4F2EC; --muted:#9A968C; --amber:#E8A33D; --green:#3DDC84; --red:#E5544B;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  header{position:sticky;top:0;background:rgba(14,14,16,.9);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);padding:16px 20px;display:flex;align-items:center;gap:12px;z-index:10}
+  header h1{font-size:18px;margin:0;letter-spacing:.08em;text-transform:uppercase}
+  header .dot{width:10px;height:10px;border-radius:50%;background:var(--amber)}
+  .bar{padding:12px 20px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line)}
+  .bar input{flex:1;min-width:240px;background:var(--card);border:1px solid var(--line);
+    color:var(--ink);padding:10px 12px;border-radius:10px;font-size:13px}
+  .bar button{background:var(--amber);color:#1a1205;border:0;padding:10px 14px;border-radius:10px;
+    font-weight:700;cursor:pointer}
+  .hint{color:var(--muted);font-size:12px;padding:10px 20px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px;padding:20px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+  .media{background:#000;aspect-ratio:9/16;display:flex;align-items:center;justify-content:center;position:relative}
+  .media video,.media img{width:100%;height:100%;object-fit:cover}
+  .slides{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;aspect-ratio:4/5;background:#000}
+  .slides img{flex:0 0 100%;scroll-snap-align:center;width:100%;height:100%;object-fit:cover}
+  .badge{position:absolute;top:10px;left:10px;background:rgba(0,0,0,.6);color:var(--amber);
+    font-size:11px;padding:4px 8px;border-radius:6px;letter-spacing:.05em}
+  .body{padding:14px;display:flex;flex-direction:column;gap:8px}
+  .meta{display:flex;gap:6px;flex-wrap:wrap}
+  .tag{font-size:11px;color:var(--muted);border:1px solid var(--line);padding:2px 8px;border-radius:999px}
+  .hook{font-weight:700;font-size:15px}
+  .cap{font-size:13px;color:#d8d4c8;white-space:pre-wrap;max-height:120px;overflow:auto}
+  .tags{font-size:12px;color:var(--amber)}
+  .row{display:flex;gap:8px;margin-top:6px}
+  .row label{flex:1;display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;
+    background:#1d1d22;border:1px solid var(--line);padding:8px 10px;border-radius:10px}
+  .row input{accent-color:var(--green)}
+  footer{position:sticky;bottom:0;background:rgba(14,14,16,.95);border-top:1px solid var(--line);
+    padding:14px 20px;display:flex;gap:10px;align-items:center;justify-content:space-between}
+  .approveBtn{background:var(--green);color:#04210f;border:0;padding:12px 18px;border-radius:12px;font-weight:800;cursor:pointer}
+  .count{color:var(--muted);font-size:13px}
+  pre{white-space:pre-wrap;background:#0a0a0c;border:1px solid var(--line);border-radius:10px;
+    padding:12px;font-size:12px;color:var(--green);margin:14px 20px;display:none}
+</style>
+</head>
+<body>
+<header><span class="dot"></span><h1>LUMOS · Review & Approve</h1></header>
+
+<div class="bar">
+  <input id="pat" type="password" placeholder="Airtable Personal Access Token (μένει μόνο στον browser σου)">
+  <input id="base" placeholder="Base ID (appXXX)">
+  <input id="table" placeholder="Table" value="Posts">
+  <button onclick="load()">Φόρτωσε «Ready to Schedule»</button>
+</div>
+<div class="hint">Δείχνει posts με Status = "Ready to Schedule". Τσέκαρε όσα εγκρίνεις και πάτα «Approve επιλεγμένα» (block approval → Status=Approved). Το token ΔΕΝ αποθηκεύεται πουθενά αλλού.</div>
+
+<div class="grid" id="grid"></div>
+<pre id="log"></pre>
+
+<footer>
+  <span class="count" id="count">0 επιλεγμένα</span>
+  <button class="approveBtn" onclick="approveSelected()">✅ Approve επιλεγμένα</button>
+</footer>
+
+<script>
+const API = "https://api.airtable.com/v0";
+let records = [];
+
+function headers(){ return { "Authorization": "Bearer " + document.getElementById('pat').value }; }
+function cfg(){ return { base: document.getElementById('base').value.trim(), table: document.getElementById('table').value.trim() }; }
+function log(m){ const l=document.getElementById('log'); l.style.display='block'; l.textContent += m + "\n"; }
+
+async function load(){
+  const {base, table} = cfg();
+  document.getElementById('grid').innerHTML = "";
+  const formula = encodeURIComponent("{Status}='Ready to Schedule'");
+  const url = `${API}/${base}/${encodeURIComponent(table)}?filterByFormula=${formula}&pageSize=100`;
+  try{
+    const r = await fetch(url, { headers: headers() });
+    const data = await r.json();
+    if(data.error){ log("Σφάλμα: " + JSON.stringify(data.error)); return; }
+    records = data.records || [];
+    render();
+  }catch(e){ log("Σφάλμα δικτύου: " + e.message); }
+}
+
+function render(){
+  const grid = document.getElementById('grid');
+  grid.innerHTML = "";
+  if(!records.length){ grid.innerHTML = "<p style='color:#9A968C;padding:20px'>Κανένα post σε Ready to Schedule.</p>"; return; }
+  records.forEach(rec=>{
+    const f = rec.fields;
+    const urls = (f["Media URL"]||"").split(",").map(s=>s.trim()).filter(Boolean);
+    const isCarousel = (f["Format"]||"").toLowerCase()==="carousel";
+    let media;
+    if(isCarousel){
+      media = `<div class="slides">${urls.map(u=>`<img src="${u}" loading="lazy">`).join("")}</div>`;
+    } else if((f["Format"]||"").toLowerCase().includes("reel")){
+      media = `<div class="media"><span class="badge">REEL</span><video src="${urls[0]||''}" controls playsinline preload="metadata"></video></div>`;
+    } else {
+      media = `<div class="media"><img src="${urls[0]||''}" loading="lazy"></div>`;
+    }
+    const el = document.createElement('div');
+    el.className = "card";
+    el.innerHTML = `
+      ${media}
+      <div class="body">
+        <div class="meta">
+          <span class="tag">${f["Platform"]||""}</span>
+          <span class="tag">${f["Format"]||""}</span>
+          <span class="tag">${f["Funnel Stage"]||""}</span>
+          <span class="tag">${(f["Scheduled At"]||"").slice(0,16).replace("T"," ")}</span>
+        </div>
+        <div class="hook">${f["Hook"]||""}</div>
+        <div class="cap">${(f["Caption"]||"")}</div>
+        <div class="tags">${f["Hashtags"]||""}</div>
+        <div style="font-size:12px;color:#9A968C">📣 ${f["CTA"]||""}</div>
+        <div class="row">
+          <label><input type="checkbox" class="sel" data-id="${rec.id}"> Έγκριση αυτού</label>
+        </div>
+      </div>`;
+    grid.appendChild(el);
+  });
+  document.querySelectorAll('.sel').forEach(c=>c.addEventListener('change', updateCount));
+  updateCount();
+}
+
+function selectedIds(){ return [...document.querySelectorAll('.sel:checked')].map(c=>c.dataset.id); }
+function updateCount(){ document.getElementById('count').textContent = selectedIds().length + " επιλεγμένα"; }
+
+async function approveSelected(){
+  const ids = selectedIds();
+  if(!ids.length){ alert("Δεν επέλεξες κανένα."); return; }
+  const {base, table} = cfg();
+  // Airtable PATCH δέχεται max 10 records/κλήση → chunk
+  for(let i=0;i<ids.length;i+=10){
+    const chunk = ids.slice(i,i+10).map(id=>({ id, fields: { "Status": "Approved" } }));
+    const r = await fetch(`${API}/${base}/${encodeURIComponent(table)}`,{
+      method:"PATCH",
+      headers:{ ...headers(), "Content-Type":"application/json" },
+      body: JSON.stringify({ records: chunk })
+    });
+    const d = await r.json();
+    if(d.error){ log("Σφάλμα PATCH: " + JSON.stringify(d.error)); return; }
+    log(`✅ Approved ${chunk.length} (batch ${i/10+1})`);
+  }
+  alert("Εγκρίθηκαν " + ids.length + " posts. Ο publisher θα τα ανεβάσει στην ώρα τους.");
+  load();
+}
+</script>
+</body>
+</html>
