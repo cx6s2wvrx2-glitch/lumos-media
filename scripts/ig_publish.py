@@ -11,7 +11,7 @@ Env (from GitHub secrets):
 """
 import json, os, sys, time, datetime, urllib.request, urllib.parse, urllib.error
 
-QUEUE = "posts/queue.json"
+QUEUE = "queue.json"
 API   = "https://graph.facebook.com/v21.0"
 TOKEN = os.environ["IG_TOKEN"]
 UID   = os.environ["IG_USERID"]
