@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LUMOS · Command Center</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+:root{
+  --bg:#0E0F13; --panel:#16181F; --panel2:#1C1F28; --line:#262A35;
+  --ink:#F2F3F5; --muted:#8A8F9C; --dim:#5A5F6C;
+  --red:#FF3B30; --redsoft:#D81E12; --green:#30D158; --amber:#FFD60A; --blue:#0A84FF;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:Manrope,sans-serif;min-height:100vh;padding:28px 22px 60px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto}
+header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:26px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand .bar{width:8px;height:34px;background:var(--redsoft);border-radius:3px}
+.brand h1{font-size:26px;font-weight:800;letter-spacing:-0.03em}
+.brand .sub{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-top:2px}
+.clock{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted);text-align:right}
+.clock b{color:var(--ink);font-weight:700}
+
+/* section titles */
+.sec{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin:30px 0 14px}
+
+/* KPI grid */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 18px 16px;position:relative;overflow:hidden}
+.kpi .lab{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.kpi .val{font-size:34px;font-weight:800;letter-spacing:-.03em;margin-top:8px;font-variant-numeric:tabular-nums}
+.kpi .note{font-size:11px;color:var(--dim);margin-top:3px;font-weight:600}
+.kpi .accent{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--redsoft)}
+.kpi.g .accent{background:var(--green)} .kpi.a .accent{background:var(--amber)} .kpi.b .accent{background:var(--blue)}
+
+/* system status */
+.sys{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
+.card h3{font-size:14px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+.dot.ok{background:var(--green);box-shadow:0 0 10px rgba(48,209,88,.5)}
+.dot.warn{background:var(--amber);box-shadow:0 0 10px rgba(255,214,10,.4)}
+.dot.off{background:var(--dim)}
+.card p{font-size:12.5px;color:var(--muted);line-height:1.5;font-weight:500}
+.card a{color:var(--blue);text-decoration:none;font-weight:600;font-size:12.5px}
+.card a:hover{text-decoration:underline}
+.pill{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:3px 8px;border-radius:6px;margin-top:8px}
+.pill.ok{background:rgba(48,209,88,.13);color:var(--green)}
+.pill.warn{background:rgba(255,214,10,.13);color:var(--amber)}
+.pill.off{background:rgba(90,95,108,.15);color:var(--muted)}
+
+/* links row */
+.links{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.lnk{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:13px 15px;text-decoration:none;color:var(--ink);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:space-between;transition:border-color .15s,transform .1s}
+.lnk:hover{border-color:var(--redsoft);transform:translateY(-1px)}
+.lnk span{color:var(--dim);font-size:16px}
+
+.loading{color:var(--dim);font-size:12px;font-family:'JetBrains Mono',monospace}
+.err{color:var(--amber);font-size:11px;margin-top:6px}
+footer{margin-top:40px;text-align:center;color:var(--dim);font-size:11px;font-weight:600}
+.refresh{background:none;border:1px solid var(--line);color:var(--muted);font-family:inherit;font-weight:700;font-size:11px;padding:7px 13px;border-radius:9px;cursor:pointer;letter-spacing:.04em}
+.refresh:hover{border-color:var(--redsoft);color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="bar"></div>
+      <div>
+        <h1>Command Center</h1>
+        <div class="sub">LUMOS · Flowstate · @n_gianno_</div>
+      </div>
+    </div>
+    <div class="clock">
+      <div id="date"></div>
+      <div><b id="time"></b> Athens</div>
+      <button class="refresh" onclick="loadAll()" style="margin-top:8px">↻ Ανανέωση</button>
+    </div>
+  </header>
+
+  <!-- GYM live numbers -->
+  <div class="sec">Γυμναστήριο — ζωντανά (Supabase)</div>
+  <div class="kpis" id="gymKpis">
+    <div class="kpi"><div class="accent"></div><div class="lab">Ενεργές συνδρομές</div><div class="val loading" id="k_mem">…</div><div class="note">πληρωμένες, με πρόσβαση</div></div>
+    <div class="kpi g"><div class="accent"></div><div class="lab">Κρατήσεις (ενεργές)</div><div class="val loading" id="k_book">…</div><div class="note">confirmed bookings</div></div>
+    <div class="kpi b"><div class="accent"></div><div class="lab">Έσοδα (σύνολο)</div><div class="val loading" id="k_pay">…</div><div class="note">paid, ιστορικό</div></div>
+    <div class="kpi a"><div class="accent"></div><div class="lab">Νέα leads</div><div class="val loading" id="k_lead">…</div><div class="note">status = new</div></div>
+    <div class="kpi"><div class="accent"></div><div class="lab">Slots/εβδομάδα</div><div class="val loading" id="k_slot">…</div><div class="note">ενεργά, cap 3/ώρα</div></div>
+    <div class="kpi"><div class="accent"></div><div class="lab">Προφίλ</div><div class="val loading" id="k_prof">…</div><div class="note">εγγεγραμμένοι χρήστες</div></div>
+  </div>
+  <div class="err" id="gymErr"></div>
+
+  <!-- SYSTEMS -->
+  <div class="sec">Συστήματα — κατάσταση</div>
+  <div class="sys">
+    <div class="card">
+      <h3><span class="dot ok"></span>@n_gianno_ Publisher</h3>
+      <p>Auto-posting 3×/μέρα, 69 posts έως 31/12. Token αυτο-ανανεώνεται.</p>
+      <span class="pill ok">Live · Self-maintaining</span>
+    </div>
+    <div class="card">
+      <h3><span class="dot ok"></span>Token Auto-Refresh</h3>
+      <p>Ανανεώνεται μόνο του κάθε 2 μήνες. Δεν λήγει ποτέ.</p>
+      <span class="pill ok">Live</span>
+    </div>
+    <div class="card">
+      <h3><span class="dot ok"></span>Lead Funnels ×4</h3>
+      <p>ΟΔΗΓΟΣ · COACHING · ΤΕΧΝΙΚΗ · ΠΛΑΝΟ — capture + follow-up.</p>
+      <span class="pill ok">Live</span>
+    </div>
+    <div class="card">
+      <h3><span class="dot warn"></span>ManyChat</h3>
+      <p>Free plan στο όριο 25 contacts. Νέοι που κάνουν DM μπορεί να μην πιάνονται.</p>
+      <span class="pill warn">Όριο · δες Essential</span>
+    </div>
+    <div class="card">
+      <h3><span class="dot warn"></span>Flowstate Publisher</h3>
+      <p>Δεν έχει στηθεί ακόμα. Περιμένει το JSON για ίδιο pipeline.</p>
+      <span class="pill warn">Εκκρεμεί</span>
+    </div>
+    <div class="card">
+      <h3><span class="dot off"></span>Reels</h3>
+      <p>Το κανάλι reach #1 του 2026. Επιλογή να μείνει κλειστό.</p>
+      <span class="pill off">Ανενεργό</span>
+    </div>
+  </div>
+
+  <!-- QUICK LINKS -->
+  <div class="sec">Γρήγορη πρόσβαση</div>
+  <div class="links">
+    <a class="lnk" href="https://lumos-gym.netlify.app/admin" target="_blank">Admin Γυμναστήριο <span>↗</span></a>
+    <a class="lnk" href="https://dashboard.mailerlite.com" target="_blank">MailerLite <span>↗</span></a>
+    <a class="lnk" href="https://calendly.com/nick7back/ngianno-coaching" target="_blank">Calendly <span>↗</span></a>
+    <a class="lnk" href="https://app.manychat.com" target="_blank">ManyChat <span>↗</span></a>
+    <a class="lnk" href="https://github.com/cx6s2wvrx2-glitch/lumos-media/actions" target="_blank">Publisher Actions <span>↗</span></a>
+    <a class="lnk" href="https://instagram.com/n_gianno_" target="_blank">@n_gianno_ <span>↗</span></a>
+    <a class="lnk" href="https://supabase.com/dashboard/project/nyncwhljcpesbwrwitzo" target="_blank">Supabase <span>↗</span></a>
+    <a class="lnk" href="https://thrv.netlify.app" target="_blank">THRV <span>↗</span></a>
+  </div>
+
+  <footer>LUMOS Command Center · ζωντανά δεδομένα από Supabase · ενημέρωση σε κάθε άνοιγμα</footer>
+</div>
+
+<script>
+const SB_URL = "https://nyncwhljcpesbwrwitzo.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55bmN3aGxqY3Blc2J3cndpdHpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzI5ODYsImV4cCI6MjA5NDcwODk4Nn0.8Aeuktw9D6U0Cp4HChH4-QmQ_5EmNUMmuWGISWgSMUg";
+
+async function loadAll(){
+  const set=(id,v)=>{const e=document.getElementById(id);e.textContent=v;e.classList.remove("loading");};
+  document.getElementById("gymErr").textContent="";
+  try{
+    const r = await fetch(SB_URL+"/rest/v1/dashboard_stats?select=*", {
+      headers:{ apikey:SB_KEY, Authorization:"Bearer "+SB_KEY }
+    });
+    const rows = await r.json();
+    const s = rows[0] || {};
+    set("k_mem",  s.active_memberships);
+    set("k_book", s.confirmed_bookings);
+    set("k_lead", s.new_leads);
+    set("k_slot", s.active_slots);
+    set("k_prof", s.profiles);
+    set("k_pay",  "€"+Number(s.paid_eur||0).toLocaleString("el-GR"));
+  }catch(e){
+    document.getElementById("gymErr").textContent="Δεν φόρτωσαν τα ζωντανά δεδομένα (έλεγξε σύνδεση). "+e;
+    ["k_mem","k_book","k_pay","k_lead","k_slot","k_prof"].forEach(id=>{const el=document.getElementById(id);el.textContent="—";el.classList.remove("loading");});
+  }
+}
+
+function tick(){
+  const now=new Date();
+  const opt={timeZone:"Europe/Athens"};
+  document.getElementById("time").textContent=now.toLocaleTimeString("el-GR",{...opt,hour:"2-digit",minute:"2-digit"});
+  document.getElementById("date").textContent=now.toLocaleDateString("el-GR",{...opt,weekday:"long",day:"numeric",month:"long"});
+}
+tick(); setInterval(tick,1000);
+loadAll();
+</script>
+</body>
+</html>
