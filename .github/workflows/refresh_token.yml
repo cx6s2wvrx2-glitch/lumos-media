@@ -1,0 +1,20 @@
+name: Refresh IG Token
+on:
+  schedule:
+    - cron: '0 3 1 */2 *'   # 03:00 UTC, 1st day, every 2 months
+  workflow_dispatch:         # or run manually anytime
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install pynacl --quiet
+      - run: python scripts/refresh_token.py
+        env:
+          FB_APP_ID:     ${{ secrets.FB_APP_ID }}
+          FB_APP_SECRET: ${{ secrets.FB_APP_SECRET }}
+          IG_TOKEN:      ${{ secrets.IG_TOKEN }}
+          GH_PAT:        ${{ secrets.GH_PAT }}
+          GH_REPO:       cx6s2wvrx2-glitch/lumos-media
